@@ -1,5 +1,7 @@
-# sbs
+sbs
+====
 simple batch scheduler - a single user job scheduler
+----
 
 A single-user batch scheduler that stores queued job information in a 
 local directory. This greatly simplifies trying to run an analysis 
