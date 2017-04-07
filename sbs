@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 '''
-simple batch scheduler
+simple batch scheduler - a single user job scheduler
+----
 
 A single-user batch scheduler that stores queued job information in a 
 local directory. This greatly simplifies trying to run an analysis 
@@ -10,19 +11,22 @@ installation and management because it doesn't require installing a
 separate database or other libraries.
 
 The SBS queue directory (default: ./.sbs) can be changed using the 
-environment variable: $SBSHOME
+environment variable: `$SBSHOME`
 
-Similarly to the above, jobs are submitted as runnable scripts 
-with some meta-data: (mem, cpus, dependencies) added as comments. 
+Similar to traditional job schedulers, job scripts are submitted as 
+runnable scripts with some meta-data: (mem, cpus, dependencies) added 
+as comments. Options can be set as command arguments too.
 
 Jobs are then run, respecting memory or cpu limits. The maximum memory
 or processors used can be set at run time (default: max number of CPUs
 on the host and no memory limits).
 
 Example usage:
-    sbs submit ./job_script1.sh
-    sbs submit ./job_script2.sh
+
+    sbs submit job_script1.sh
+    sbs submit job_script2.sh
     sbs run
+
 '''
 
 import os
@@ -63,7 +67,7 @@ Commands:'''
         for cmd in valid:
             maxlen = max(maxlen, len(cmd))
 
-        for cmd in valid:
+        for cmd in sorted(valid):
             print '  %s%s    %s' % (cmd, ' '*(maxlen-len(cmd)), sys.modules[__name__].__dict__[cmd].__doc__)
 
 
@@ -80,7 +84,6 @@ Options:
   -mem val       Memory to use ('2G', '1000M', etc)
   -name val      job-name
   -procs N       number of processors
-  -wt val        execution time limit (HH:MM:SS or D-H)
         '''
 
     elif cmd == 'run':
@@ -172,7 +175,7 @@ def _get_next_jobid():
     return jobid
 
 
-def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, hold=False, wt=None, stdout=None, stderr=None):
+def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, hold=False, stdout=None, stderr=None):
     'Submit a new job to the queue'
 
     script_lines = []
@@ -188,8 +191,9 @@ def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, ho
         if firstline:
             if line[:2] != '#!':
                 script_lines.append('#!/bin/sh\n')
+            firstline = False
 
-        if line[:5] == '#SBS -':
+        if line[:6] == '#SBS -':
             if ' ' in line[6:]:
                 cmd, val = line[6:].split(' ', 1)
                 val = val.strip()
@@ -209,8 +213,6 @@ def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, ho
                 afterok = val
             elif cmd == 'hold':
                 hold = True
-            elif cmd == 'wt':
-                wt = val
             elif cmd == 'stdout':
                 stdout = val
             elif cmd == 'stderr':
@@ -219,7 +221,6 @@ def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, ho
         script_lines.append(line)
 
     if afterok:
-        sys.stderr.write('afterok=%s\n' % afterok)
         for depid in str(afterok).split(':'):
             if not _get_status(int(depid)):
                 sys.stderr.write('ERROR: Dependent job %s not found!' % depid)
@@ -248,8 +249,6 @@ def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, ho
             out.write('%s\t%s\n' % ('procs', procs))
         if afterok:
             out.write('%s\t%s\n' % ('afterok', afterok))
-        if wt:
-            out.write('%s\t%s\n' % ('wt', wt)) 
         if stdout:
             out.write('%s\t%s\n' % ('stdout', stdout)) 
         if stderr:
@@ -274,7 +273,7 @@ def _get_status(jobid):
 
 def _set_status(jobid, status, because_of_jobid=None):
     with open(os.path.join(sbshome, 'sbs.%s' % jobid, 'state'), 'a') as out:
-        out.write('%s\t%s\n' % (status, time.time()))
+        out.write('%s\t%s\n' % (status, int(time.time())))
         _log_status(jobid, status)
 
     if _get_job_setting(jobid, "mail"):
@@ -452,30 +451,33 @@ def status(jobid=None):
     
 
 
-def cancel(jobid):
+def cancel(*jobids):
     'Cancel a job'
 
-    curstate = _get_status(jobid)
+    for jobid in jobids:
+        curstate = _get_status(jobid)
 
-    _set_status(jobid, STATE_CANCEL)
+        _set_status(jobid, STATE_CANCEL)
 
-    if curstate not in [STATE_ERROR, STATE_SUCCESS, STATE_CANCEL]:
-        if curstate == STATE_RUNNING:
-            sys.stdout.write("%s stopped" % jobid)
-            _stop_job(jobid)
-        else:
-            sys.stdout.write("%s canceled" % jobid)
+        if curstate not in [STATE_ERROR, STATE_SUCCESS, STATE_CANCEL]:
+            if curstate == STATE_RUNNING:
+                sys.stdout.write("%s stopped" % jobid)
+                _stop_job(jobid)
+            else:
+                sys.stdout.write("%s canceled" % jobid)
 
 
-def hold(jobid):
+def hold(*jobids):
     'Hold a job from running until released'
     init()
-    _set_status(jobid, STATE_USERHOLD)
+    for jobid in jobids:
+        _set_status(jobid, STATE_USERHOLD)
 
-def release(jobid):
+def release(*jobids):
     'Release a job'
-    _set_status(jobid, STATE_HOLD)
     init()
+    for jobid in jobids:
+        _set_status(jobid, STATE_HOLD)
     pass
 
 def cleanup(jobid=None):
