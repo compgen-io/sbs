@@ -556,6 +556,8 @@ def _spawn_job(jobid):
     e = open(stderr, 'w')
 
     wd = _get_job_setting(jobid, 'wd')
+    if not wd:
+        wd = None
 
     try:
         retcode = subprocess.call([os.path.join(sbshome, 'sbs.%s' % jobid,'script')], shell=True, stdout=o, stderr=e, cwd=wd)
