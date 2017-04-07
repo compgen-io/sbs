@@ -11,9 +11,9 @@ installation and management because it doesn't require installing a
 separate database or other libraries.
 
 The SBS queue directory (default: ./.sbs) can be changed using the 
-environment variable: $SBSHOME
+environment variable: `$SBSHOME`
 
-Similarly to traditional schedulers above, jobs are submitted as 
+Similar to traditional job schedulers, job scripts are submitted as 
 runnable scripts with some meta-data: (mem, cpus, dependencies) added 
 as comments. Options can be set as command arguments too.
 
@@ -23,6 +23,6 @@ on the host and no memory limits).
 
 Example usage:
 
-    sbs submit ./job_script1.sh
-    sbs submit ./job_script2.sh
+    sbs submit job_script1.sh
+    sbs submit job_script2.sh
     sbs run
