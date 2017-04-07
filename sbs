@@ -92,8 +92,9 @@ Options:
 Usage: sbs run {options}
 
 Options:
-  -maxprocs N    number of processors
-  -maxmem val    Memory to use ('2G', '1000M', etc)
+  -maxprocs N    Max number of processors
+  -maxmem val    Max emory to use ('2G', '1000M', etc)
+  -forever       Run forever (until shutdown called)
         '''
     elif cmd == 'hold':
         print hold.__doc__
@@ -124,6 +125,10 @@ Usage: sbs cleanup
         print shutdown.__doc__
         print '''
 Usage: sbs shutdown
+
+Options:
+  -kill          Kill all currently running jobs (default is to 
+                 wait until they finish)
         '''
 
     print ''
@@ -360,7 +365,7 @@ def _get_status_time(jobid, state):
 
 def _run_log(msg):
     if inrun:
-        sys.stderr.write('%s %s\n' % (datetime.datetime.now(), msg))
+        sys.stderr.write('%s %s\n' % (datetime.datetime.fromtimestamp(int(time.time())), msg))
 
 def _log_status(jobid, status):
     _run_log('[job:%s] status changed %s' % (jobid, status))
@@ -526,7 +531,6 @@ def _get_job_depends_on(jobid):
     return children
 
 
-
 def _stop_job(jobid):
     with open(os.path.join(sbshome, 'sbs.%s' % jobid,'pid')) as f:
         pid = int(f.next().strip())
@@ -616,6 +620,16 @@ def _get_job_mem(jobid):
     return 0
 
 
+def _check_valid_jobs():
+    valid = False
+    for jobid in glob.glob(os.path.join(sbshome, 'sbs.*')):
+        jobid = int(os.path.basename(jobid)[4:])
+        if _get_status(jobid) in [STATE_HOLD, STATE_RUNNING, STATE_QUEUED, STATE_USERHOLD]:
+            valid = True
+
+    return valid
+
+
 def _check_deps():
     for jobid in glob.glob(os.path.join(sbshome, 'sbs.*')):
         jobid = int(os.path.basename(jobid)[4:])
@@ -668,7 +682,6 @@ def _get_job_to_run(avail_procs, avail_mem):
     for jobid in sorted(jobids):
         status = _get_status(jobid)
         if status == STATE_QUEUED:
-            _run_log('[job:%s] queued' % jobid)
             job_procs = _get_job_procs(jobid)
             job_mem = _get_job_mem(jobid)
             if  job_procs <= avail_procs:
@@ -703,7 +716,7 @@ def _get_run_status():
     return ret.strip()
 
 
-def run(maxprocs=0, maxmem='', daemonize=False):
+def run(maxprocs=0, maxmem='', daemonize=False, forever=False):
     'Start running jobs'
 
     ## TODO: Add daemon-mode?
@@ -731,15 +744,30 @@ def run(maxprocs=0, maxmem='', daemonize=False):
     try:
         while True:
             if os.path.exists(os.path.join(sbshome,'shutdown')):
+                with open(os.path.join(sbshome,'shutdown')) as f:
+                    if f.next().strip() == 'kill':
+                        _run_log("shutting down server (killing running jobs)")
+                        for running_jobid in glob.glob(os.path.join(sbshome, 'running', 'sbs.*')):
+                            jobid = int(os.path.basename(running_jobid)[4:])
+                            _run_log("  killing job: %s" % jobid)
+                            _set_status(jobid, STATE_CANCEL)
+                            _stop_job(jobid)
+                    else:
+                        _run_log("shutting down server (waiting for spawned jobs to finish)")
+
+
                 os.remove(os.path.join(sbshome,'shutdown'))
-                _run_log("shutting down server (waiting for spawned jobs to finish)")
                 break
 
-            if changed:
-                newstat =  '%s (procs:%s, mem:%s)' % (_get_run_status(), avail_procs, avail_mem)
-                if newstat != laststat:
-                    _run_log(newstat)
-                    laststat = newstat
+            if not forever and not _check_valid_jobs():
+                _run_log("shutting down server (no remaining jobs)")
+                break
+
+
+            newstat =  '%s (procs:%s, mem:%s)' % (_get_run_status(), avail_procs, avail_mem)
+            if newstat != laststat or changed:
+                _run_log(newstat)
+                laststat = newstat
 
             changed = False
 
@@ -767,17 +795,18 @@ def run(maxprocs=0, maxmem='', daemonize=False):
                     avail_mem -= job_to_run[2]
                 _start_job(job_to_run[0])
                 job_to_run = _get_job_to_run(avail_procs, avail_mem)
+                changed = True
 
             if not changed:
                 time.sleep(10)
     except KeyboardInterrupt:
         pass
 
-def shutdown():
+def shutdown(kill=False):
     'Stop running jobs (and cancel any currently running jobs)'
     init()
     with open(os.path.join(sbshome,'shutdown'),'w') as out:
-        out.write('')
+        out.write('kill\n' if kill else '')
 
 
 def help(cmd=None):
