@@ -60,7 +60,7 @@ def usage(cmd=None):
     if not cmd:
         print __doc__
         print '''
-Usage: sbs command {options}
+Usage: sbs {-d sbshome} command {options}
 
 Commands:'''
         maxlen = 0
@@ -74,7 +74,7 @@ Commands:'''
     elif cmd == 'submit':
         print submit.__doc__
         print '''
-Usage: sbs status {options} job_script (default to stdin)
+Usage: sbs {-d sbshome} submit {options} job_script (default to stdin)
 
 Options:
   -afterok job1:job2:job3...
@@ -84,12 +84,13 @@ Options:
   -mem val       Memory to use ('2G', '1000M', etc)
   -name val      job-name
   -procs N       number of processors
+  -wd dir        working directory
         '''
 
     elif cmd == 'run':
         print run.__doc__
         print '''
-Usage: sbs run {options}
+Usage: sbs {-d sbshome} run {options}
 
 Options:
   -maxprocs N    Max number of processors
@@ -99,32 +100,32 @@ Options:
     elif cmd == 'hold':
         print hold.__doc__
         print '''
-Usage: sbs hold jobid
+Usage: sbs {-d sbshome} hold jobid
         '''
     elif cmd == 'release':
         print release.__doc__
         print '''
-Usage: sbs release jobid
+Usage: sbs {-d sbshome} release jobid
         '''
     elif cmd == 'cancel':
         print cancel.__doc__
         print '''
-Usage: sbs cancel jobid
+Usage: sbs {-d sbshome} cancel jobid
         '''
     elif cmd == 'status':
         print status.__doc__
         print '''
-Usage: sbs status {jobid}
+Usage: sbs {-d sbshome} status {jobid}
         '''
     elif cmd == 'cleanup':
         print cleanup.__doc__
         print '''
-Usage: sbs cleanup
+Usage: sbs {-d sbshome} cleanup
         '''
     elif cmd == 'shutdown':
         print shutdown.__doc__
         print '''
-Usage: sbs shutdown
+Usage: sbs {-d sbshome} shutdown
 
 Options:
   -kill          Kill all currently running jobs (default is to 
@@ -180,7 +181,7 @@ def _get_next_jobid():
     return jobid
 
 
-def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, hold=False, stdout=None, stderr=None):
+def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, hold=False, stdout=None, stderr=None, wd=None):
     'Submit a new job to the queue'
 
     script_lines = []
@@ -222,6 +223,8 @@ def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, ho
                 stdout = val
             elif cmd == 'stderr':
                 stderr = val
+            elif cmd == 'wd':
+                wd = val
 
         script_lines.append(line)
 
@@ -258,6 +261,8 @@ def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, ho
             out.write('%s\t%s\n' % ('stdout', stdout)) 
         if stderr:
             out.write('%s\t%s\n' % ('stderr', stderr)) 
+        if wd:
+            out.write('%s\t%s\n' % ('wd', stderr)) 
 
     if hold:
         _set_status(jobid, STATE_USERHOLD)
@@ -550,8 +555,10 @@ def _spawn_job(jobid):
     o = open(stdout, 'w')
     e = open(stderr, 'w')
 
+    wd = _get_job_setting(jobid, 'wd')
+
     try:
-        retcode = subprocess.call([os.path.join(sbshome, 'sbs.%s' % jobid,'script')], shell=True, stdout=o, stderr=e)
+        retcode = subprocess.call([os.path.join(sbshome, 'sbs.%s' % jobid,'script')], shell=True, stdout=o, stderr=e, cwd=wd)
     except KeyboardInterrupt:
         sys.stderr.write('Killing job: %s\n' % jobid)
         retcode = 127
@@ -745,7 +752,12 @@ def run(maxprocs=0, maxmem='', daemonize=False, forever=False):
         while True:
             if os.path.exists(os.path.join(sbshome,'shutdown')):
                 with open(os.path.join(sbshome,'shutdown')) as f:
-                    if f.next().strip() == 'kill':
+                    killme = False
+                    for line in f:
+                        if line.strip() == 'kill':
+                            killme = True
+
+                    if killme:
                         _run_log("shutting down server (killing running jobs)")
                         for running_jobid in glob.glob(os.path.join(sbshome, 'running', 'sbs.*')):
                             jobid = int(os.path.basename(running_jobid)[4:])
@@ -821,57 +833,48 @@ def help(cmd=None):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2 or sys.argv[1] not in valid:
+    if len(sys.argv) < 2 or (sys.argv[1] not in valid and sys.argv[1] != '-d'):
         usage()
 
-    kwargs = {}
-    args = []
+    if sys.argv[1] == '-d':
+        sbshome = sys.argv[2]
+
+        cmd = sys.argv[3]
+        args = sys.argv[4:]
+    else:
+        cmd = sys.argv[1]
+        args = sys.argv[2:]
+
+    cmd_kwargs = {}
+    cmd_args = []
 
     last = None
 
-    for arg in sys.argv[2:]:
+    for arg in args:
         if arg[0] == '-':
             if last:
-                kwargs[last[1:]] = True
+                cmd_kwargs[last[1:]] = True
             else:
                 last = arg
         elif last:
             try:
                 val = int(arg)
-                kwargs[last[1:]] = val
+                cmd_kwargs[last[1:]] = val
             except:
-                kwargs[last[1:]] = arg                
+                cmd_kwargs[last[1:]] = arg                
             last = None
         else:
             try:
                 val = int(arg)
-                args.append(val)
+                cmd_args.append(val)
             except:
-                args.append(arg)
+                cmd_args.append(arg)
 
     if last:
-        kwargs[last[1:]] = True
+        cmd_kwargs[last[1:]] = True
 
-    try:
-        if sys.argv[1] == 'help':
-            help(*args)
-        if sys.argv[1] == 'submit':
-            submit(*args, **kwargs)
-        if sys.argv[1] == 'status':
-            status(*args, **kwargs)
-        if sys.argv[1] == 'cancel':
-            cancel(*args, **kwargs)
-        if sys.argv[1] == 'run':
-            run(*args, **kwargs)
-        if sys.argv[1] == 'release':
-            release(*args, **kwargs)
-        if sys.argv[1] == 'hold':
-            hold(*args, **kwargs)
-        if sys.argv[1] == 'cleanup':
-            cleanup(*args, **kwargs)
-        if sys.argv[1] == 'shutdown':
-            shutdown(*args, **kwargs)
-    except Exception, e:
-        sys.stdout.write(str(e))
-
-        usage(sys.argv[0])
+    if cmd == 'help':
+        help(*args)
+    else:
+        if cmd in valid:
+            sys.modules[__name__].__dict__[cmd](*cmd_args, **cmd_kwargs)
