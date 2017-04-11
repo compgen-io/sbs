@@ -29,6 +29,7 @@ Example usage:
 
 '''
 
+import re
 import os
 import sys
 import glob
@@ -208,7 +209,7 @@ def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, ho
                 val = None
 
             if cmd == 'name':
-                name = val
+                name = re.sub(r'[^a-zA-Z0-9_-]', '_', val) 
             elif cmd == 'mem':
                 mem = val
             elif cmd == 'mail':
