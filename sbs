@@ -83,9 +83,11 @@ Options:
   -hold          Wait to run job until released by user
   -mail email    Send an email to this address when job is done (success or error)
   -mem val       Memory to use ('2G', '1000M', etc)
-  -name val      job-name
-  -procs N       number of processors
-  -wd dir        working directory
+  -name val      Job-name
+  -procs N       Number of processors
+  -stderr fname  Write stderr to this file
+  -stdout fname  Write stdout to this file
+  -wd dir        Working directory
         '''
 
     elif cmd == 'run':
@@ -145,13 +147,13 @@ def init():
             out.write('1\n')
 
 
-def _lock(maxattempts=10):
+def _lock(name="lock", maxattempts=10):
     locked = False
     trynum = 0
 
     while not locked:
         try:
-            os.mkdir(os.path.join(sbshome, 'lock'))
+            os.mkdir(os.path.join(sbshome, name))
             locked = True
         except:
             trynum += 1
@@ -164,8 +166,8 @@ def _lock(maxattempts=10):
     return True
 
 
-def _release_lock():
-    os.rmdir(os.path.join(sbshome, 'lock'))
+def _release_lock(name="lock"):
+    os.rmdir(os.path.join(sbshome, name))
 
 
 def _get_next_jobid():
@@ -187,8 +189,12 @@ def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, ho
 
     script_lines = []
 
-    if fname and os.path.exists(fname):
-        f = open(fname)
+    if fname:
+        if os.path.exists(fname):
+            f = open(fname)
+        else:
+            sys.stderr.write("Missing job script: %s\n" % fname)
+            sys.exit(1)
     else:
         f = sys.stdin
 
@@ -732,6 +738,7 @@ def run(maxprocs=0, maxmem='', daemonize=False, forever=False):
     ## TODO: Add daemon-mode?
 
     init()
+    _lock("run.lock")
     global inrun
     inrun = True
     if not maxprocs:
@@ -816,6 +823,9 @@ def run(maxprocs=0, maxmem='', daemonize=False, forever=False):
                 time.sleep(10)
     except KeyboardInterrupt:
         pass
+
+    _release_lock("run.lock")
+
 
 def shutdown(kill=False):
     'Stop running jobs (and cancel any currently running jobs)'
