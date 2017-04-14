@@ -160,7 +160,7 @@ def _lock(name="lock", maxattempts=10):
             time.sleep(1)
 
             if trynum > maxattempts:
-                sys.stderr.write("Error getting file lock!")
+                sys.stderr.write("Error getting file lock!\n")
                 sys.exit(1)
 
     return True
