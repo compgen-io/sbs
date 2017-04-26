@@ -26,3 +26,5 @@ Example usage:
     sbs submit job_script1.sh
     sbs submit job_script2.sh
     sbs run
+
+sbs-1.0

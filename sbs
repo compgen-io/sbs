@@ -27,6 +27,7 @@ Example usage:
     sbs submit job_script2.sh
     sbs run
 
+sbs-1.0
 '''
 
 import re
