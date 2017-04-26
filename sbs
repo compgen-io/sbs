@@ -560,8 +560,15 @@ def _spawn_job(jobid):
     if not stdout:
         stdout = os.path.join(sbshome, 'sbs.%s' % jobid,'stdout')
 
-    o = open(stdout, 'w')
-    e = open(stderr, 'w')
+    if os.path.isdir(stdout):
+        o = open(os.path.join(stdout, "%s.stdout" % jobid), 'w')
+    else:
+        o = open(stdout, 'w')
+
+    if os.path.isdir(stderr):
+        e = open(os.path.join(stderr, "%s.stderr" % jobid), 'w')
+    else:
+        e = open(stderr, 'w')
 
     wd = _get_job_setting(jobid, 'wd')
     if not wd:
