@@ -27,7 +27,6 @@ Example usage:
     sbs submit job_script2.sh
     sbs run
 
-sbs-1.0
 '''
 
 import re
@@ -45,7 +44,8 @@ import multiprocessing
 
 from email.mime.text import MIMEText
 
-valid = ['help', 'submit', 'status', 'run', 'cancel', 'hold', 'release', 'cleanup', 'shutdown']
+version = "1.0.2"
+valid = ['help', 'submit', 'status', 'run', 'cancel', 'hold', 'release', 'cleanup', 'shutdown', 'version']
 sbshome = os.path.join(os.path.realpath('.'),'.sbs') if not os.environ.get('SBSHOME') else os.environ.get('SBSHOME')
 
 STATE_USERHOLD='U'
@@ -70,6 +70,8 @@ Commands:'''
             maxlen = max(maxlen, len(cmd))
 
         for cmd in sorted(valid):
+            if cmd == 'version':
+                continue
             print '  %s%s    %s' % (cmd, ' '*(maxlen-len(cmd)), sys.modules[__name__].__dict__[cmd].__doc__)
 
 
@@ -899,6 +901,8 @@ if __name__ == '__main__':
 
     if cmd == 'help':
         help(*args)
+    elif cmd == 'version':
+        print 'sbs-%s' % version
     else:
         if cmd in valid:
             sys.modules[__name__].__dict__[cmd](*cmd_args, **cmd_kwargs)
