@@ -574,6 +574,9 @@ def _spawn_job(jobid):
     if not wd:
         wd = None
 
+    env = os.environ
+    env['JOB_ID'] = str(jobid)
+
     try:
         retcode = subprocess.call([os.path.join(sbshome, 'sbs.%s' % jobid,'script')], shell=True, stdout=o, stderr=e, cwd=wd)
     except KeyboardInterrupt:
