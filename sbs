@@ -794,16 +794,6 @@ def run(maxprocs=0, maxmem='', daemonize=False, forever=False):
                 os.remove(os.path.join(sbshome,'shutdown'))
                 break
 
-            if not forever and not _check_valid_jobs():
-                _run_log("shutting down server (no remaining jobs)")
-                break
-
-
-            newstat =  '%s (procs:%s, mem:%s)' % (_get_run_status(), avail_procs, avail_mem)
-            if newstat != laststat or changed:
-                _run_log(newstat)
-                laststat = newstat
-
             changed = False
 
             for running_jobid in glob.glob(os.path.join(sbshome, 'running', 'sbs.*')):
@@ -819,6 +809,15 @@ def run(maxprocs=0, maxmem='', daemonize=False, forever=False):
 
                     os.remove(running_jobid)
                     changed = True
+
+            newstat =  '%s (procs:%s, mem:%s)' % (_get_run_status(), avail_procs, avail_mem)
+            if newstat != laststat or changed:
+                _run_log(newstat)
+                laststat = newstat
+
+            if not forever and not _check_valid_jobs():
+                _run_log("shutting down server (no remaining jobs)")
+                break
 
             _check_deps()
             job_to_run = _get_job_to_run(avail_procs, avail_mem)  # tuple(jobid, procs, meme) or None
