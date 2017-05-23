@@ -44,7 +44,7 @@ import multiprocessing
 
 from email.mime.text import MIMEText
 
-version = "1.0.3"
+version = "1.0.4"
 valid = ['help', 'submit', 'status', 'run', 'cancel', 'hold', 'release', 'cleanup', 'shutdown', 'version']
 sbshome = os.path.join(os.path.realpath('.'),'.sbs') if not os.environ.get('SBSHOME') else os.environ.get('SBSHOME')
 
@@ -481,10 +481,10 @@ def cancel(*jobids):
 
         if curstate not in [STATE_ERROR, STATE_SUCCESS, STATE_CANCEL]:
             if curstate == STATE_RUNNING:
-                sys.stdout.write("%s stopped" % jobid)
+                sys.stdout.write("%s stopped\n" % jobid)
                 _stop_job(jobid)
             else:
-                sys.stdout.write("%s canceled" % jobid)
+                sys.stdout.write("%s canceled\n" % jobid)
 
 
 def hold(*jobids):
