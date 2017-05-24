@@ -272,7 +272,7 @@ def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, ho
         if stderr:
             out.write('%s\t%s\n' % ('stderr', stderr)) 
         if wd:
-            out.write('%s\t%s\n' % ('wd', stderr)) 
+            out.write('%s\t%s\n' % ('wd', os.path.abspath(wd))) 
 
     if hold:
         _set_status(jobid, STATE_USERHOLD)
