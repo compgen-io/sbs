@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''
 simple batch scheduler - a single user job scheduler
 ----
@@ -60,11 +60,11 @@ inrun = False
 
 def usage(cmd=None):
     if not cmd:
-        print __doc__
-        print '''
+        print(__doc__)
+        print('''
 Usage: sbs {-d sbshome} command {options}
 
-Commands:'''
+Commands:''')
         maxlen = 0
         for cmd in valid:
             maxlen = max(maxlen, len(cmd))
@@ -72,17 +72,18 @@ Commands:'''
         for cmd in sorted(valid):
             if cmd == 'version':
                 continue
-            print '  %s%s    %s' % (cmd, ' '*(maxlen-len(cmd)), sys.modules[__name__].__dict__[cmd].__doc__)
+            print('  %s%s    %s' % (cmd, ' '*(maxlen-len(cmd)), sys.modules[__name__].__dict__[cmd].__doc__))
 
 
     elif cmd == 'submit':
-        print submit.__doc__
-        print '''
+        print(submit.__doc__)
+        print('''
 Usage: sbs {-d sbshome} submit {options} job_script (default to stdin)
 
 Options:
   -afterok job1:job2:job3...
                  Job dependencies. Do not run until these jobs have completed (successfully)
+  -cmd           Run this command (default is to read a script)
   -hold          Wait to run job until released by user
   -mail email    Send an email to this address when job is done (success or error)
   -mem val       Memory to use ('2G', '1000M', etc)
@@ -91,54 +92,54 @@ Options:
   -stderr fname  Write stderr to this file
   -stdout fname  Write stdout to this file
   -wd dir        Working directory
-        '''
+        ''')
 
     elif cmd == 'run':
-        print run.__doc__
-        print '''
+        print(run.__doc__)
+        print('''
 Usage: sbs {-d sbshome} run {options}
 
 Options:
   -maxprocs N    Max number of processors
   -maxmem val    Max emory to use ('2G', '1000M', etc)
   -forever       Run forever (until shutdown called)
-        '''
+        ''')
     elif cmd == 'hold':
-        print hold.__doc__
-        print '''
+        print(hold.__doc__)
+        print('''
 Usage: sbs {-d sbshome} hold jobid
-        '''
+        ''')
     elif cmd == 'release':
-        print release.__doc__
-        print '''
+        print(release.__doc__)
+        print('''
 Usage: sbs {-d sbshome} release jobid
-        '''
+        ''')
     elif cmd == 'cancel':
-        print cancel.__doc__
-        print '''
+        print(cancel.__doc__)
+        print('''
 Usage: sbs {-d sbshome} cancel jobid
-        '''
+        ''')
     elif cmd == 'status':
-        print status.__doc__
-        print '''
+        print(status.__doc__)
+        print('''
 Usage: sbs {-d sbshome} status {jobid}
-        '''
+        ''')
     elif cmd == 'cleanup':
-        print cleanup.__doc__
-        print '''
+        print(cleanup.__doc__)
+        print('''
 Usage: sbs {-d sbshome} cleanup
-        '''
+        ''')
     elif cmd == 'shutdown':
-        print shutdown.__doc__
-        print '''
+        print(shutdown.__doc__)
+        print('''
 Usage: sbs {-d sbshome} shutdown
 
 Options:
   -kill          Kill all currently running jobs (default is to 
                  wait until they finish)
-        '''
+        ''')
 
-    print ''
+    print('')
 
     sys.exit(1)
 
@@ -178,7 +179,7 @@ def _get_next_jobid():
 
     jobid = 0
     with open(os.path.join(sbshome, 'next_job_id')) as f:
-        jobid = int(f.next().strip())
+        jobid = int(f.read().strip())
     with open(os.path.join(sbshome, 'next_job_id'), 'w') as out:
         out.write('%s\n' % (jobid + 1))
 
@@ -187,56 +188,62 @@ def _get_next_jobid():
     return jobid
 
 
-def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, hold=False, stdout=None, stderr=None, wd=None):
+def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, hold=False, stdout=None, stderr=None, wd=None, cmd=None):
     'Submit a new job to the queue'
 
+    init()
     script_lines = []
 
-    if fname:
-        if os.path.exists(fname):
-            f = open(fname)
-        else:
-            sys.stderr.write("Missing job script: %s\n" % fname)
-            sys.exit(1)
+    if cmd:
+        script_lines.append('#!/bin/sh\n')
+        script_lines.append(cmd)
+        pass
     else:
-        f = sys.stdin
-
-    firstline = True
-
-    for line in f:
-        if firstline:
-            if line[:2] != '#!':
-                script_lines.append('#!/bin/sh\n')
-            firstline = False
-
-        if line[:6] == '#SBS -':
-            if ' ' in line[6:]:
-                cmd, val = line[6:].split(' ', 1)
-                val = val.strip()
+        if fname:
+            if os.path.exists(fname):
+                f = open(fname)
             else:
-                cmd = line[6:]
-                val = None
+                sys.stderr.write("Missing job script: %s\n" % fname)
+                sys.exit(1)
+        else:
+            f = sys.stdin
 
-            if cmd == 'name':
-                name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', val) 
-            elif cmd == 'mem':
-                mem = val
-            elif cmd == 'mail':
-                mail = val
-            elif cmd == 'procs':
-                procs = int(val)
-            elif cmd == 'afterok':
-                afterok = val
-            elif cmd == 'hold':
-                hold = True
-            elif cmd == 'stdout':
-                stdout = val
-            elif cmd == 'stderr':
-                stderr = val
-            elif cmd == 'wd':
-                wd = val
+        firstline = True
 
-        script_lines.append(line)
+        for line in f:
+            if firstline:
+                if line[:2] != '#!':
+                    script_lines.append('#!/bin/sh\n')
+                firstline = False
+
+            if line[:6] == '#SBS -':
+                if ' ' in line[6:]:
+                    cmd, val = line[6:].split(' ', 1)
+                    val = val.strip()
+                else:
+                    cmd = line[6:]
+                    val = None
+
+                if cmd == 'name':
+                    name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', val) 
+                elif cmd == 'mem':
+                    mem = val
+                elif cmd == 'mail':
+                    mail = val
+                elif cmd == 'procs':
+                    procs = int(val)
+                elif cmd == 'afterok':
+                    afterok = val
+                elif cmd == 'hold':
+                    hold = True
+                elif cmd == 'stdout':
+                    stdout = val
+                elif cmd == 'stderr':
+                    stderr = val
+                elif cmd == 'wd':
+                    wd = val
+
+            script_lines.append(line)
 
     if afterok:
         for depid in str(afterok).split(':'):
@@ -254,7 +261,7 @@ def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, ho
         for line in script_lines:
             out.write(line)
 
-    os.chmod(os.path.join(sbshome, 'sbs.%s' % jobid, 'script'), 0700)
+    os.chmod(os.path.join(sbshome, 'sbs.%s' % jobid, 'script'), 0o700)
 
     with open(os.path.join(sbshome, 'sbs.%s' % jobid, 'settings'), 'w') as out:
         if name:
@@ -901,7 +908,7 @@ if __name__ == '__main__':
     if cmd == 'help':
         help(*args)
     elif cmd == 'version':
-        print 'sbs-%s' % version
+        print('sbs-%s' % version)
     else:
         if cmd in valid:
             sys.modules[__name__].__dict__[cmd](*cmd_args, **cmd_kwargs)
