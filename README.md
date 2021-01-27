@@ -58,4 +58,4 @@ The usage is very similar to many HPC schedulers...
       submit      Submit a new job to the queue
 
 
-sbs-1.0
+sbs-1.1
