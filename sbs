@@ -78,12 +78,12 @@ Commands:''')
     elif cmd == 'submit':
         print(submit.__doc__)
         print('''
-Usage: sbs {-d sbshome} submit {options} job_script (default to stdin)
+Usage: sbs {-d sbshome} submit {options} job_script.sh (default to stdin)
+       sbs {-d sbshome} submit {options} -- commands to run
 
 Options:
   -afterok job1:job2:job3...
                  Job dependencies. Do not run until these jobs have completed (successfully)
-  -cmd           Run this command (default is to read a script)
   -hold          Wait to run job until released by user
   -mail email    Send an email to this address when job is done (success or error)
   -mem val       Memory to use ('2G', '1000M', etc)
@@ -188,15 +188,15 @@ def _get_next_jobid():
     return jobid
 
 
-def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, hold=False, stdout=None, stderr=None, wd=None, cmd=None):
+def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, hold=False, stdout=None, stderr=None, wd=None, _cmdline=None):
     'Submit a new job to the queue'
 
     init()
     script_lines = []
 
-    if cmd:
+    if _cmdline:
         script_lines.append('#!/bin/sh\n')
-        script_lines.append(cmd)
+        script_lines.append(_cmdline)
         pass
     else:
         if fname:
@@ -886,6 +886,8 @@ if __name__ == '__main__':
         if arg[0] == '-':
             if last:
                 cmd_kwargs[last[1:]] = True
+            elif arg == '--':
+                last = '-_cmdline'
             else:
                 last = arg
         elif last:
