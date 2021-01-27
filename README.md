@@ -44,18 +44,18 @@ Installation is as simple as copying the sbs script someplace in your $PATH (wit
 
 The usage is very similar to many HPC schedulers...
 
-Usage: sbs {-d sbshome} command {options}
-
-Commands:
-  cancel      Cancel a job
-  cleanup     Remove all completed jobs
-  help        Help for a particular command
-  hold        Hold a job from running until released
-  release     Release a job
-  run         Start running jobs
-  shutdown    Stop running jobs (and cancel any currently running jobs)
-  status      Get the run status of a job (run state)
-  submit      Submit a new job to the queue
+    Usage: sbs {-d sbshome} command {options}
+    
+    Commands:
+      cancel      Cancel a job
+      cleanup     Remove all completed jobs
+      help        Help for a particular command
+      hold        Hold a job from running until released
+      release     Release a job
+      run         Start running jobs
+      shutdown    Stop running jobs (and cancel any currently running jobs)
+      status      Get the run status of a job (run state)
+      submit      Submit a new job to the queue
 
 
 sbs-1.0
