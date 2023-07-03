@@ -44,7 +44,7 @@ import multiprocessing
 
 from email.mime.text import MIMEText
 
-version = "1.0.5"
+version = "1.1.1"
 valid = ['help', 'submit', 'status', 'run', 'cancel', 'hold', 'release', 'cleanup', 'shutdown', 'version']
 sbshome = os.path.join(os.path.realpath('.'),'.sbs') if not os.environ.get('SBSHOME') else os.environ.get('SBSHOME')
 
