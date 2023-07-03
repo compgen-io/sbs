@@ -196,7 +196,7 @@ def submit(fname=None, name=None, procs=1, mem=None, afterok=None, mail=None, ho
 
     if _cmdline:
         script_lines.append('#!/bin/sh\n')
-        script_lines.append(_cmdline)
+        script_lines.append('%s\n' % _cmdline)
         pass
     else:
         if fname:
@@ -883,11 +883,14 @@ if __name__ == '__main__':
     last = None
 
     for arg in args:
-        if arg[0] == '-':
+        if last == '-_cmdline':
+            cmd_kwargs['_cmdline'] = '%s %s' % (cmd_kwargs['_cmdline'], arg) if cmd_kwargs['_cmdline'] else arg
+        elif arg[0] == '-':
             if last:
                 cmd_kwargs[last[1:]] = True
             elif arg == '--':
                 last = '-_cmdline'
+                cmd_kwargs['_cmdline'] = ''
             else:
                 last = arg
         elif last:
@@ -904,7 +907,7 @@ if __name__ == '__main__':
             except:
                 cmd_args.append(arg)
 
-    if last:
+    if last and last != '-_cmdline':
         cmd_kwargs[last[1:]] = True
 
     if cmd == 'help':
